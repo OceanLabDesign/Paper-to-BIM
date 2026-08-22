@@ -27,7 +27,7 @@ docs/adr/NNNN-*.md   已決 ＋ 理由 ＋ 放棄了什麼
 ADR 不是會議紀錄，寫太多等於沒寫：
 
 1. **真的有替代方案**，而且不只一個聽起來合理
-2. **改起來會痛** —— 動到公開介面、資料結構、契約，或已有資料引用
+2. **改起來會痛** —— 動到公開介面、資料結構、契約（contract），或已有資料引用
 3. **影響超過一個檔案**
 4. **半年後的人看程式碼看不出為什麼**
 
@@ -51,10 +51,10 @@ ADR 不是會議紀錄，寫太多等於沒寫：
 
 | # | 標題 | 狀態 |
 |---|---|---|
-| [0001](0001-三段式套件命名.md) | 三段式套件命名與中樞的函式名 | accepted |
+| [0001](0001-三段式套件命名.md) | 三段式套件命名與中樞（planning）的函式名 | accepted |
 | [0002](0002-契約三件套改為代擬審核.md) | 契約三件套改為「代擬＋審核」 | accepted |
-| [0003](0003-十五類偵測類別.md) | 15 類偵測類別與「順序即 id」 | accepted |
-| [0004](0004-證據id命名空間.md) | 證據 id 命名空間 `EVIDENCE_NS` | accepted |
-| [0005](0005-llm供應商薄介面.md) | LLM 供應商用自寫薄介面，不用統一層套件 | accepted |
-| [0006](0006-技能格式.md) | 技能＝指令包＋選用的可執行腳本 | accepted |
-| [0007](0007-匯出器不得相依mcp.md) | 匯出器不得相依 MCP；確定性不是 byte-identical | accepted |
+| [0003](0003-十五類偵測類別.md) | 15 類偵測類別（detection class）與「順序即 id」 | accepted |
+| [0004](0004-證據id命名空間.md) | 證據 id 命名空間（namespace） `EVIDENCE_NS` | accepted |
+| [0005](0005-llm供應商薄介面.md) | LLM 供應商（provider）用自寫薄介面（thin interface），不用統一層（unified LLM API layer）套件 | accepted |
+| [0006](0006-技能格式.md) | 技能（skill）＝指令包＋選用的可執行腳本 | accepted |
+| [0007](0007-匯出器不得相依mcp.md) | 匯出器（exporter）不得相依 MCP；確定性（determinism）不是 byte-identical | accepted |

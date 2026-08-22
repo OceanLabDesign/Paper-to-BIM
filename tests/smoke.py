@@ -9,7 +9,7 @@
   6. 最小測資：欄位對得上契約、403+403=806 閉合、evidence id 解析得到
   7. 新接縫：TOOL_SPECS 與 tools.py 對得上、匯出器中繼資料合法、
      IFC 仍被 §12 擋著、沒有任何 exporter 相依 MCP
-  8. ADR：前置資料合法、編號不重用、必要段落齊、README 索引沒漏
+  8. ADR 與術語表：前置資料合法、編號不重用、段落齊、索引沒漏、術語表沒變孤兒
   9. 逐字區塊：§7.3 的 prompt 與 §5 的迴圈，程式與規格必須仍一字不差
 各項獨立計分 —— 任一項失敗不會污染其他項的判定。
 除了 [5] 的 PyYAML 之外不需要第三方套件。
@@ -312,6 +312,15 @@ if adr_dir.exists():
                 adr_fail.append(f"{f.name}：缺 {sec} 段")
         if f.name not in index:
             adr_fail.append(f"{f.name}：沒出現在 docs/adr/README.md 的索引")
+
+# 術語對照表是文件註記的唯一來源，不能變孤兒
+gloss = ROOT / "docs" / "術語對照.md"
+if not gloss.exists():
+    adr_fail.append("docs/術語對照.md 不存在，但語言慣例指向它")
+else:
+    for doc in ("README.md", "CLAUDE.md"):
+        if "術語對照.md" not in (ROOT / doc).read_text(encoding="utf-8"):
+            adr_fail.append(f"{doc} 沒有連到 docs/術語對照.md")
     print(f"[8] ADR：{'通過' if not adr_fail else '有問題'}（{len(adrs)} 份）")
 
 # [9] 逐字區塊守門：規格裡逐字轉錄的東西，程式與文件必須仍然一字不差
