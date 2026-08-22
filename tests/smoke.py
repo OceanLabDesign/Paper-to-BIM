@@ -10,6 +10,7 @@
   7. 新接縫：TOOL_SPECS 與 tools.py 對得上、匯出器中繼資料合法、
      IFC 仍被 §12 擋著、沒有任何 exporter 相依 MCP
   8. ADR：前置資料合法、編號不重用、必要段落齊、README 索引沒漏
+  9. 逐字區塊：§7.3 的 prompt 與 §5 的迴圈，程式與規格必須仍一字不差
 各項獨立計分 —— 任一項失敗不會污染其他項的判定。
 除了 [5] 的 PyYAML 之外不需要第三方套件。
 """
@@ -302,8 +303,45 @@ if adr_dir.exists():
             adr_fail.append(f"{f.name}：沒出現在 docs/adr/README.md 的索引")
     print(f"[8] ADR：{'通過' if not adr_fail else '有問題'}（{len(adrs)} 份）")
 
+# [9] 逐字區塊守門：規格裡逐字轉錄的東西，程式與文件必須仍然一字不差
+verbatim_fail = []
+spec_path = ROOT / "docs" / "程式設計_v0.4.md"
+if spec_path.exists() and not import_fail:
+    spec = spec_path.read_text(encoding="utf-8")
+
+    # §7.3 system prompt —— 純逐字，沒有任何改寫餘地
+    prompts = importlib.import_module("planning.prompts")
+    for line in prompts.SYSTEM_PROMPT.strip().splitlines():
+        if line and line not in spec:
+            verbatim_fail.append(f"§7.3 prompt 這行在規格裡找不到：{line[:36]}…")
+
+    # §5 迴圈骨架 —— 比對「語句序列」（去註解、去縮排），
+    # 已知的刻意差異只有 MAX_ITER 改成從 core.config 匯入
+    def statements(text, start):
+        out, on = [], False
+        for ln in text.splitlines():
+            if ln.strip().startswith("def run_case"):
+                on = True; continue
+            if on:
+                if ln.strip().startswith(("def ", "#", "```")) and ln[:1] not in (" ", "\t"):
+                    break
+                code = ln.split("#")[0].strip()
+                if code:
+                    out.append(code)
+        return out
+    a = statements(spec, "§5")
+    b = statements((ROOT / "planning" / "orchestrator.py").read_text(encoding="utf-8"), "code")
+    if a != b:
+        only_spec = [x for x in a if x not in b]
+        only_code = [x for x in b if x not in a]
+        verbatim_fail.append(
+            f"§5 迴圈與 orchestrator.run_case 不一致："
+            f"只在規格 {only_spec or '無'}；只在程式 {only_code or '無'}")
+    print(f"[9] 逐字區塊：{'一致' if not verbatim_fail else '有出入'}"
+          f"（§7.3 prompt {len(prompts.SYSTEM_PROMPT.strip().splitlines())} 行、§5 迴圈 {len(b)} 句）")
+
 failures = (import_fail + config_fail + contract_fail + schema_fail
-            + fixture_fail + seam_fail + adr_fail)
+            + fixture_fail + seam_fail + adr_fail + verbatim_fail)
 if failures:
     print("\n✗ 有問題：")
     for f in failures:

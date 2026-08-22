@@ -46,7 +46,31 @@ python3 -m planning.orchestrator cases/<案號_地段>       # 全迴圈入口�
 
 除此之外**尚未建立 build / lint / test 工具鏈**（無 pyproject.toml、requirements.txt、CI）。從 repo root 執行即可。要不要正式打包等第一支模組落地再定，不要假設已經存在。
 
-規格指定的技術選型：**PyMuPDF**（s01 讀影像 XObject 放置矩陣）、**OpenCV**（s03 自適應二值化＋Hough）、**ezdxf**（s07 出 DXF）、**Claude API**（真中樞）、**IfcOpenShell**（第 8 步才做）。
+### 相依：照 §11 建造順序分階段裝，不要一次全裝
+
+`tests/smoke.py` 只需要 **Python 3.10–3.14**（上下限來自 IfcOpenShell 與 rhino3dm）。PyYAML 選用，沒有的話 `[5]` 自動跳過。
+
+| 步 | 模組 | 套件 |
+|---|---|---|
+| 2 | `s01_ingest` | PyMuPDF |
+| 3 | `s01b` / `s02b` / `s03_lines` | OpenCV、NumPy |
+| 3 | `s03_texts` | PaddleOCR-VL（很重，帶 PaddlePaddle，可延後） |
+| 5 | `s07_execute` / `export_review` | ezdxf、openpyxl |
+| 8 | `ifc` 匯出器 | IfcOpenShell |
+| — | `rhino` 匯出器 | rhino3dm |
+
+**動手前先查現況**，不要照這張表盲裝：
+
+```bash
+python3 -c "
+for m in ['yaml','fitz','cv2','numpy','ezdxf','ifcopenshell','rhino3dm','openpyxl']:
+    try: __import__(m); print('  ✓', m)
+    except ImportError: print('  ✗', m)"
+```
+
+中樞（LLM）：雲端設 `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`，本地用 Ollama / vLLM / LM Studio（同一支 `openai_compat` 轉接器）。**金鑰走環境變數，不要寫進 `core/config.py`** —— 那支會進版控。
+
+**外部 CAD 軟體一律不是必要的。** DXF 與 IFC 都是純檔案輸出。ArchiCAD / Revit / VisualARQ 只在要產「該軟體裡可編輯的原生牆」時才需要，各自的硬相依與 OS 限制見規格 §8.1 與 `execution/exporters/` 各支的 docstring。以上**全部不需要 API token**。
 
 測資固定用 68 年案；每支模組自帶自測（規格 §13）。`403+403=806`（尺寸鏈閉合）是第一筆迴歸測試。
 
@@ -110,7 +134,27 @@ examples/    plan_vN.sample.yaml（§6.1 格式範例，id 是假的、非真實
 
 中樞的函式叫 `propose_plan()`（模組 `planning/proposer.py`／`fake_proposer.py`）—— 名字講的是**產出**，不是它由什麼做的。英文 `brain` 一詞已退出 repo，概念一律用「中樞」。模組檔名一律照 §8 的 sXX 原名。
 
-## 架構決策紀錄（ADR）
+## 文件與 commit 的語言慣例
+
+**一律中文**，不做中英對照版（雙語文件的維護成本會讓其中一份必然過時）。
+但**專有名詞第一次在該文件出現時，於其後加括號標註英文原文**：
+
+```
+架構決策紀錄（Architecture Decision Record, ADR）
+自適應二值化（adaptive thresholding）
+曬圖（diazo print）
+```
+
+同一份文件裡同一個詞**只標第一次**，之後直接用中文 —— 每次都標會讓文章讀不下去。
+對應表見 `docs/術語對照.md`，**不要自己另譯**；表裡沒有的詞，加進表再用。
+
+**commit 訊息同一套規則**：中文，專有名詞加括號原文。
+
+⚠ **逐字轉錄的區塊不准加註**：規格 §5 的迴圈 code block、§7.3 的 system prompt、
+§10 的參數區塊、§6.1 的 plan 範例 —— 這些是逐字轉錄，加了括號就不再逐字。
+`tests/smoke.py` 的 `[9]` 會擋。
+
+## 架構決策紀錄（Architecture Decision Record, ADR）
 
 `docs/adr/` 記的是**已決的架構決定＋當初放棄了什麼**。方法與模板見 `docs/adr/README.md`。
 
