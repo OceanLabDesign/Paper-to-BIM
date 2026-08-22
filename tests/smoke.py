@@ -7,7 +7,8 @@
   4. 契約自洽：fields 與 case 對得上、EVIDENCE_NS 指得到、§9 五欄齊、classes 15 類且順序即 id
   5. plan_schema 與 §6.1 範例對得上（需 PyYAML，沒有就跳過）
   6. 最小測資：欄位對得上契約、403+403=806 閉合、evidence id 解析得到
-  7. 新接縫：TOOL_SPECS 與 tools.py 對得上、匯出器 needs 合法、IFC 仍被 §12 擋著
+  7. 新接縫：TOOL_SPECS 與 tools.py 對得上、匯出器中繼資料合法、
+     IFC 仍被 §12 擋著、沒有任何 exporter 相依 MCP
 各項獨立計分 —— 任一項失敗不會污染其他項的判定。
 除了 [5] 的 PyYAML 之外不需要第三方套件。
 """
@@ -243,8 +244,20 @@ if not import_fail:
     for r in exreg.table():
         if r["needs"] not in exbase.NEEDS:
             seam_fail.append(f"匯出器 {r['name']!r} 的 needs {r['needs']!r} 不合法")
+        if not isinstance(r["native"], bool):
+            seam_fail.append(f"匯出器 {r['name']!r} 的 native_objects 不是 bool")
+        if r["os"] not in ("", "windows", "darwin", "linux"):
+            seam_fail.append(f"匯出器 {r['name']!r} 的 os_required {r['os']!r} 不合法")
+        if r["gated"] and not exreg.EXPORTERS[r["name"]].gate_reason:
+            seam_fail.append(f"匯出器 {r['name']!r} 被擋卻沒說理由")
     if not next(x for x in exreg.table() if x["name"] == "ifc")["gated"]:
         seam_fail.append("IFC 匯出器沒有被擋 —— §12 說等 ArchiCAD 往返測試通過才做")
+    # MCP 不得成為 exporter 的相依（§8 確定性）—— 只准出現在 docstring
+    for f in sorted((ROOT / "execution" / "exporters").glob("*.py")):
+        for ln, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
+            t = line.strip()
+            if (t.startswith("import ") or t.startswith("from ")) and "mcp" in t.lower():
+                seam_fail.append(f"{f.name}:{ln} 匯入了 MCP —— §8：確定性管線不准插非確定性元件")
 
     sk = importlib.import_module("planning.skills")
     for x in sk.list_skills():
