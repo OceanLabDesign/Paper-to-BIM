@@ -58,4 +58,4 @@ ADR 不是會議紀錄，寫太多等於沒寫：
 | [0005](0005-llm供應商薄介面.md) | LLM 供應商（provider）用自寫薄介面（thin interface），不用統一層（unified LLM API layer）套件 | accepted |
 | [0006](0006-技能格式.md) | 技能（skill）＝指令包＋選用的可執行腳本 | accepted |
 | [0007](0007-匯出器不得相依mcp.md) | 匯出器（exporter）不得相依 MCP；確定性（determinism）不是 byte-identical | accepted |
-| [0008](0008-輸入格式.md) | 輸入是拼版 PDF 還是單張掃描影像 | **proposed** |
+| [0008](0008-輸入格式.md) | 散開的掃描影像如何進入座標系 | **proposed** |

@@ -5,7 +5,10 @@
 輸出：{case}/01_tiles/*.png（各片**原始解析度、未轉正**）、{case}/01_offsets.csv
 
 要點：**用 PyMuPDF 讀每個影像 XObject 的放置矩陣** —— Illustrator 拼的檔案，
-      偏移量就寫在 PDF 裡，不用重新對位、不要做特徵點拼接。
+      偏移量就寫在 PDF 裡，**不用重新對位**（規格 §8 原文如此）。
+
+      ⚠ 規格說的是「不用」，不是「不准」。輸入若是沒有放置矩陣的單張影像，
+        或多張分次掃描，對位要另尋來源 —— 見 docs/adr/0008-輸入格式.md。
 
 01_offsets.csv 欄位（裁決 §1 定版，正式清單見 core/fields.py）：
     tile_id,page,x,y,w,h,rotation,upright_file
