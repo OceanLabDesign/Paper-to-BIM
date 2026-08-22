@@ -9,6 +9,7 @@
   6. 最小測資：欄位對得上契約、403+403=806 閉合、evidence id 解析得到
   7. 新接縫：TOOL_SPECS 與 tools.py 對得上、匯出器中繼資料合法、
      IFC 仍被 §12 擋著、沒有任何 exporter 相依 MCP
+  8. ADR：前置資料合法、編號不重用、必要段落齊、README 索引沒漏
 各項獨立計分 —— 任一項失敗不會污染其他項的判定。
 除了 [5] 的 PyYAML 之外不需要第三方套件。
 """
@@ -266,10 +267,46 @@ if not import_fail:
     print(f"[7] 新接縫：{'通過' if not seam_fail else '有問題'}"
           f"（{len(spec_names)} 支工具／{len(exreg.table())} 個匯出器／{len(sk.list_skills())} 個技能）")
 
-failures = import_fail + config_fail + contract_fail + schema_fail + fixture_fail + seam_fail
+# [8] ADR：前置資料合法、編號與檔名一致、必要段落齊、索引沒漏
+adr_fail = []
+adr_dir = ROOT / "docs" / "adr"
+if adr_dir.exists():
+    import re
+    STATUSES = ("proposed", "accepted", "superseded", "rejected")
+    SECTIONS = ("## 脈絡", "## 選項", "## 決定", "## 後果", "## 依據")
+    index = (adr_dir / "README.md").read_text(encoding="utf-8")
+    seen = {}
+    adrs = sorted(adr_dir.glob("[0-9]*.md"))
+    for f in adrs:
+        t = f.read_text(encoding="utf-8")
+        m = re.match(r"---\n(.*?)\n---\n", t, re.S)
+        if not m:
+            adr_fail.append(f"{f.name}：沒有前置資料")
+            continue
+        meta = dict((k.strip(), v.strip())
+                    for k, _, v in (l.partition(":") for l in m.group(1).splitlines()) if k.strip())
+        num = meta.get("number", "")
+        if num != f.name[:4]:
+            adr_fail.append(f"{f.name}：number={num!r} 與檔名不符")
+        if num in seen:
+            adr_fail.append(f"{f.name}：編號 {num} 與 {seen[num]} 重複（編號永不重用）")
+        seen[num] = f.name
+        if meta.get("status") not in STATUSES:
+            adr_fail.append(f"{f.name}：status {meta.get('status')!r} 不在 {STATUSES}")
+        if meta.get("status") == "superseded" and not meta.get("superseded_by"):
+            adr_fail.append(f"{f.name}：標為 superseded 卻沒填 superseded_by")
+        for sec in SECTIONS:
+            if sec not in t:
+                adr_fail.append(f"{f.name}：缺 {sec} 段")
+        if f.name not in index:
+            adr_fail.append(f"{f.name}：沒出現在 docs/adr/README.md 的索引")
+    print(f"[8] ADR：{'通過' if not adr_fail else '有問題'}（{len(adrs)} 份）")
+
+failures = (import_fail + config_fail + contract_fail + schema_fail
+            + fixture_fail + seam_fail + adr_fail)
 if failures:
     print("\n✗ 有問題：")
     for f in failures:
         print("  -", f)
     sys.exit(1)
-print("\n✓ 骨架完整。" + ("下一步：§11 第 1 步，Louis 手寫契約三件套。" if empty else ""))
+print("\n✓ 骨架完整。" + ("下一步：§11 第 1 步，負責人手寫契約三件套。" if empty else ""))

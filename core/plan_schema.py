@@ -1,7 +1,7 @@
 """core/plan_schema.py —— 繪圖計畫的結構定義與驗收規則
 
-★ 契約三件套之一。規格 §4 原文是「Louis 親手寫，Claude Code 只能引用」——
-  本檔由 Claude Code 依 Louis 指派代擬。**尚未定版，需 Louis 逐項確認。**
+★ 契約三件套之一。規格 §4 原文是「負責人親手寫，Claude Code 只能引用」——
+  本檔由 Claude Code 依負責人指派代擬。**尚未定版，需負責人逐項確認。**
 
 本檔只定義「結構與規則是什麼」；**檢查邏輯寫在 planning/validate.py**，
 兩者分開是為了讓規則可以被讀、被列印、被拿去寫測試，而不是埋在 if 裡。
@@ -68,7 +68,7 @@ RESIDUAL_HANDLING_FROM_VERSION = 2
 #   規則 3：geometry 的每個 *_wkt 座標，必須有一筆 evidence 的命名空間屬於
 #           core.fields.COORD_SOURCES（chain / measure）。目測座標一律退。
 #           —— measure 的結果不落 CSV，中樞要把它寫進 note 或以 measure#… 形式引用；
-#              這條的落地方式**待 Louis 確認**（見 待決事項.md）。
+#              這條的落地方式**待負責人確認**（見 待決事項.md）。
 
 
 def problem(rule: int, where: str, detail: str) -> dict:

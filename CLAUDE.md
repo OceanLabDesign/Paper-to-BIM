@@ -31,11 +31,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - 這個 repo 目前是**規格書＋骨架**：`docs/程式設計_v0.4.md`（v0.4.1） 是規格，其餘 Python 檔幾乎全是 stub（呼叫即 `NotImplementedError`，附規格段落）。沒有套件設定、不是 git repo。
 - 已經是**實作**而非 stub 的只有四處：`core/config.py`（§10 實測參數逐字轉錄）、`core/case.py`（§3 路徑）、`core/io.py`（§1.1 的 `final()`）、`planning/orchestrator.py` 的迴圈骨架（§5）。動這四處等於動規格。
-- 規格的矛盾與缺漏收在本機的 `待決事項.md`（**不進版控**）。開工前先看那份；沒有那個檔就先問 Louis，不要自行取捨。
+- 規格的矛盾與缺漏收在本機的 `待決事項.md`（**不進版控**）。開工前先看那份；沒有那個檔就先問負責人，不要自行取捨。
 - 那份規格書是實作的唯一依據，本檔只是它的導航與速查。**輸入輸出照規格走，不要自行發明格式；任何與規格衝突的實作決定 → 停下來問，不要自行取捨**（規格 §0）。
-- **v0.4.1 起規格自足**，不再依賴《架構文件 v0.3》——`io.final()` 與「三源」的定義已補進 §1.1／§1.2。仍有 v0.3 才有的細節（既有 CSV 欄位全清單）需要時向 Louis 索取，不要憑空補。
+- **v0.4.1 起規格自足**，不再依賴《架構文件 v0.3》——`io.final()` 與「三源」的定義已補進 §1.1／§1.2。仍有 v0.3 才有的細節（既有 CSV 欄位全清單）需要時向負責人索取，不要憑空補。
 - 本機的裁決文件（**不進版控**）優先於規格書，其內容已折進 v0.4.1。
-- 建造順序見規格 §11，目前停在**第 1 步：Louis 手寫契約三件套**。契約未落地前，s01 以後的模組不該開工。
+- 建造順序見規格 §11，目前停在**第 1 步：負責人手寫契約三件套**。契約未落地前，s01 以後的模組不該開工。
 
 ## 指令
 
@@ -77,7 +77,7 @@ s09 跨樓層檢查 → Excel 校對 → 人
 
 ## 契約三件套（只能引用，不能改）
 
-`core/fields.py`（CSV 欄位）、`core/classes.py`（15 類偵測類別，**順序即 id，永不重排**）、`core/plan_schema.py`（plan 結構＋驗收規則）由 Louis 親手寫。欄位引 `fields.py`、類別引 `classes.py`，不要在模組裡另立一套名字。
+`core/fields.py`（CSV 欄位）、`core/classes.py`（15 類偵測類別，**順序即 id，永不重排**）、`core/plan_schema.py`（plan 結構＋驗收規則）由負責人親手寫。欄位引 `fields.py`、類別引 `classes.py`，不要在模組裡另立一套名字。
 
 ## 實測校準參數（`core/config.py`，68 年案驗證通過，不要「順手優化」）
 
@@ -90,7 +90,7 @@ s09 跨樓層檢查 → Excel 校對 → 人
 ## 目錄結構
 
 ```
-core/        契約與設定。fields/classes/plan_schema 是 ★ 契約三件套（Louis 手寫，只能引用，
+core/        契約與設定。fields/classes/plan_schema 是 ★ 契約三件套（負責人手寫，只能引用，
              目前刻意留空 → import 會 ImportError，那是預期行為，不要用預設值繞過）；
              config.py=§10 實測參數＋ASSUMED；case.py=§3 路徑（全 repo 唯一該出現 CSV
              檔名的地方）；io.py=§1.1 的 final()（verified_value 優先，皆空回 None）
@@ -109,6 +109,25 @@ examples/    plan_vN.sample.yaml（§6.1 格式範例，id 是假的、非真實
 套件用架構通用詞（perception → planning → execution），中文比喻留在 docstring 與規格書：看 → 判斷 → 畫 → `review/` 校對。
 
 中樞的函式叫 `propose_plan()`（模組 `planning/proposer.py`／`fake_proposer.py`）—— 名字講的是**產出**，不是它由什麼做的。英文 `brain` 一詞已退出 repo，概念一律用「中樞」。模組檔名一律照 §8 的 sXX 原名。
+
+## 架構決策紀錄（ADR）
+
+`docs/adr/` 記的是**已決的架構決定＋當初放棄了什麼**。方法與模板見 `docs/adr/README.md`。
+
+這條流水線的三段不要混：
+
+```
+待決事項.md          撞到歧義 → 停下來問（§0.4）      本機，不進版控
+待決事項_裁決.md      裁決那一刻                       本機，不進版控
+docs/adr/NNNN-*.md   已決 ＋ 理由 ＋ 放棄了什麼        進版控，只寫技術理由
+```
+
+**什麼時候寫**：四個條件同時成立 —— 真的有替代方案、改起來會痛（動到公開介面／
+資料結構／契約）、影響超過一個檔案、半年後看程式碼看不出為什麼。
+**修 bug、改名、加測試、規格已寫死照抄的，不要寫。** ADR 不是會議紀錄，寫太多等於沒寫。
+
+編號**永不重用、永不重編**；被取代的 ADR **不刪不改內容**，只改 `status: superseded`
+並填 `superseded_by`。`tests/smoke.py` 的 `[8]` 會查前置資料、編號、必要段落與索引。
 
 ## 工作方式
 
