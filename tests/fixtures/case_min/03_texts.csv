@@ -1,0 +1,3 @@
+text_id,sheet_id,tile_id,text,bbox_wkt,angle_deg,conf,region
+t001,A-2_1F,p01_t01,403,"POLYGON((200 -40,260 -40,260 -10,200 -10,200 -40))",0,0.97,body
+t002,A-2_1F,p01_t01,403,"POLYGON((680 -40,740 -40,740 -10,680 -10,680 -40))",0,0.96,body

@@ -1,0 +1,3 @@
+id,sheet_id,kind,value,unit,conf,status,src_paddle,src_vlm,src_geom,bbox_x,bbox_y,bbox_w,bbox_h,crop,verified_value,verified_by,verified_at,note
+r001,A-2_1F,dim,403,cm,0.98,green,403,403,403,200,-40,60,30,04_crops/r001.png,,,,
+r002,A-2_1F,dim,403,cm,0.98,green,403,403,403,680,-40,60,30,04_crops/r002.png,,,,

@@ -13,8 +13,9 @@
 
 from pathlib import Path
 
-QUALITY_LEVELS = ("good", "shadow", "crease", "bleed")  # §8
-BLOCK_PX = 256                                          # §8
+from core.fields import QUALITY_LEVELS   # good / shadow / crease / bleed（§8）
+
+BLOCK_PX = 256                          # §8
 
 
 def run(case_dir: Path) -> None:

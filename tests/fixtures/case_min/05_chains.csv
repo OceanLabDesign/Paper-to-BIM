@@ -1,0 +1,2 @@
+chain_id,sheet_id,axis,wkt,sum_value,total_value,delta,closed,unit
+c001,A-2_1F,X,"LINESTRING(0 -30, 806 -30)",806,806,0,1,cm

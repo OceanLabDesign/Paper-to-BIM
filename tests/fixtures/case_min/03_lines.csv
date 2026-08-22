@@ -1,0 +1,3 @@
+line_id,sheet_id,tile_id,wkt,length_px,angle_deg,thickness_px,quality_zone
+l001,A-2_1F,p01_t01,"LINESTRING(0 0, 952 0)",952,0,2,good
+l002,A-2_1F,p01_t01,"LINESTRING(0 28, 952 28)",952,0,2,good

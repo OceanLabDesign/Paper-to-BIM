@@ -35,8 +35,7 @@
 
 from pathlib import Path
 
-VOTE_STATUS = ("green", "yellow", "red")  # 裁決 §3
-SOURCES = ("src_paddle", "src_vlm", "src_geom")
+from core.fields import VOTE_STATUS, READING_SOURCES   # 裁決 §3
 
 
 def run(case_dir: Path) -> None:

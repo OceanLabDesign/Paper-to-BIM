@@ -24,6 +24,10 @@ from review.export_review import export_review
 #   見 待決事項.md #10。
 CONFLICT_SOURCE_FMT = "plan_v{version}"
 
+# residuals_all_handled 的「已修」門檻。**規格沒給這個數字** —— 暫定值，
+# 要拿 68 年案跑一輪 s08 看殘差分佈才定得準。見 待決事項.md #7。
+COVERAGE_OK = 0.85
+
 
 def run_case(case_dir):
     run_passive(case_dir)                    # s01–s05，任一步已完成可跳過
@@ -47,8 +51,6 @@ def run_case(case_dir):
     export_review(case_dir)                                  # 黃紅＋衝突 → Excel
 
 
-# ⚠ 待決事項.md #7：「已修／已報告」的具體判準（residuals_vN.csv 憑哪一欄判定、
-#   要不要比對 plan.conflicts/uncertain 的 id、覆蓋率門檻）§2/§5/§8 都沒定。
 def apply_plan_status(case_dir, plan) -> None:
     """把 plan 的裁定回寫 03_detections / 03_elements 的 status 欄（§9、裁決 §4）。
 
@@ -62,16 +64,20 @@ def apply_plan_status(case_dir, plan) -> None:
 
 
 def residuals_all_handled(plan, residuals) -> bool:
-    """終止條件：「殘差皆已修或已報告」（§2）。
+    """終止條件：「殘差皆已修或已報告」（§2）。**由程式碼判定，不是 agent 自稱**（§5）。
 
-    **由程式碼判定，不是 agent 自稱**（§5）。
-    引數只有「這一輪」的 plan_vN 與其執行後 s08 算出的 residuals_vN —— 逐條看每筆殘差
-    是否已修（judgments 已覆蓋）或已報告（已落在 plan 的 conflicts / uncertain），
-    兩者皆非就回 False，由 orchestrator 再跑一輪。
+    引數是「這一輪」的 plan_vN 與其執行後 s08 算出的 residuals_vN
+    （欄位見 core.fields.RESIDUALS）。逐條判定：
 
-    注意：「下一輪 plan 的 residual_handling 有沒有逐條回應」是 §6.2 規則 5，
-    那是 validate 的退件條件（見 planning/validate.py），**不在本函式**，也拿不到那份資料。
-    殘差處理只有 revise 或 report（§12），不准為了收斂蓋掉一邊。
+      已修   coverage >= COVERAGE_OK —— judgment 投影回像素蓋得住那條線
+      已報告 該筆的 involved_ids 至少一個出現在 plan 的 conflicts[].involved
+             或 uncertain[]（中樞已經知道，而且已經寫下來了）
+
+    兩者皆非 → 回 False，orchestrator 再跑一輪；輪數上限由 §5 的 for 迴圈守。
+
+    ⚠ 這條**不等於** §6.2 規則 5（「上一輪殘差有沒有出現在 residual_handling」）——
+      那是 validate 的退件條件，而且要拿下一輪的 plan 才查得到，本函式拿不到。
+      殘差處理只有 revise 或 report（§12），不准為了收斂蓋掉一邊。
     """
     raise NotImplementedError("residuals_all_handled 未實作（§11 第 5 步）")
 

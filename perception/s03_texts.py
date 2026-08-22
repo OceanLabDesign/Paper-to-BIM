@@ -15,7 +15,7 @@
 
 from pathlib import Path
 
-REGIONS = ("body", "title_block", "schedule")  # 裁決 §2
+from core.fields import TEXT_REGIONS      # body / title_block / schedule（裁決 §2）
 
 
 def run(case_dir: Path) -> None:

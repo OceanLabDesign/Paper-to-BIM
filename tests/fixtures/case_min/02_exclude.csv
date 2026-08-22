@@ -1,0 +1,2 @@
+exclude_id,sheet_id,kind,bbox_wkt,note
+e01,A-2_1F,title_block,"POLYGON((900 0,1200 0,1200 150,900 150,900 0))",標題欄

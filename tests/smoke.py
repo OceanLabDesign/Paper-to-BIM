@@ -4,8 +4,11 @@
   1. 每支模組都 import 得起來（骨架接得上，stub 只在**呼叫時**才炸）
   2. core/config.py 的實測值沒有被「順手優化」（§10 逐項比對）
   3. 建造順序（§11）第 1 步：契約三件套寫了沒
-三項各自獨立計分 —— 任一項失敗不會污染另外兩項的判定。
-不需要任何第三方套件。
+  4. 契約自洽：fields 與 case 對得上、EVIDENCE_NS 指得到、§9 五欄齊、classes 15 類且順序即 id
+  5. plan_schema 與 §6.1 範例對得上（需 PyYAML，沒有就跳過）
+  6. 最小測資：欄位對得上契約、403+403=806 閉合、evidence id 解析得到
+各項獨立計分 —— 任一項失敗不會污染其他項的判定。
+除了 [5] 的 PyYAML 之外不需要第三方套件。
 """
 
 import ast
@@ -13,6 +16,8 @@ import importlib
 import sys
 from pathlib import Path
 
+sys.dont_write_bytecode = True   # 不留 .pyc：產生器改動後大小若沒變，
+                                 # 位元碼快取會讓本腳本讀到舊版（實際踩過）
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
@@ -83,7 +88,138 @@ empty = [c for c in CONTRACTS if not has_definitions(c)]
 print(f"[3] §11 第 1 步 契約三件套：{len(CONTRACTS) - len(empty)}/{len(CONTRACTS)} 已寫"
       + (f"（{'、'.join(Path(c).stem for c in empty)} 還是空的）" if empty else ""))
 
-failures = import_fail + config_fail
+# [4] 契約自洽 —— 只在契約寫了之後才查
+contract_fail = []
+if "core/fields.py" not in empty:
+    fields = importlib.import_module("core.fields")
+    case = importlib.import_module("core.case")
+    for k in case.FILES:
+        if k not in fields.BY_FILE:
+            contract_fail.append(f"case.FILES 有 {k!r}，fields.BY_FILE 沒有")
+    for k in fields.BY_FILE:
+        if k not in case.FILES:
+            contract_fail.append(f"fields.BY_FILE 有 {k!r}，case.FILES 沒有")
+    for ns, (fk, col) in fields.EVIDENCE_NS.items():
+        if fk not in fields.BY_FILE:
+            contract_fail.append(f"EVIDENCE_NS[{ns!r}] 指向不存在的檔 {fk!r}")
+        elif col not in fields.BY_FILE[fk]:
+            contract_fail.append(f"EVIDENCE_NS[{ns!r}] 指向 {fk} 沒有的欄 {col!r}")
+    for col in fields.RICH_LABEL:                      # §9 富標籤五欄
+        for t in ("DETECTIONS", "ELEMENTS"):
+            if col not in getattr(fields, t):
+                contract_fail.append(f"§9 富標籤欄 {col!r} 不在 fields.{t}")
+    for src in fields.CONFLICT_SOURCES:                # 裁決 §5 三來源
+        if src not in ("chain_closure", "plan_vN", "cross_storey"):
+            contract_fail.append(f"CONFLICT_SOURCES 多出 {src!r}（裁決 §5 只有三個）")
+if "core/classes.py" not in empty:
+    C = importlib.import_module("core.classes")
+    if len(C.CLASSES) != 15:                           # §4：15 類
+        contract_fail.append(f"classes 是 {len(C.CLASSES)} 類，§4 說 15 類")
+    if len(set(C.NAMES)) != len(C.NAMES):
+        contract_fail.append("classes 有重複的 name")
+    for n, _zh, t in C.CLASSES:
+        if t not in C.TIERS:
+            contract_fail.append(f"class {n!r} 的 tier {t!r} 不合法")
+    for n in ("wall", "column", "dim_line"):           # §8 規則式偵測三條逐字指名
+        if not C.is_valid(n):
+            contract_fail.append(f"§8 點名的類別 {n!r} 不在 classes")
+    for i, (n, _zh, _t) in enumerate(C.CLASSES):       # 順序即 id
+        if C.class_id(n) != i:
+            contract_fail.append(f"class_id({n!r}) 不等於它的位置 {i}")
+print(f"[4] 契約自洽：{'通過' if not contract_fail else '有問題'}"
+      + ("" if "core/fields.py" not in empty else "（fields.py 還沒寫，跳過）"))
+
+# [5] plan_schema vs §6.1 範例 —— 需要 PyYAML，沒有就跳過
+schema_fail = []
+if "core/plan_schema.py" not in empty:
+    try:
+        import yaml
+    except ImportError:
+        print("[5] plan_schema 對照 §6.1 範例：跳過（無 PyYAML）")
+    else:
+        ps = importlib.import_module("core.plan_schema")
+        d = yaml.safe_load((ROOT / "examples/plan_vN.sample.yaml").read_text(encoding="utf-8"))
+        for sec in ps.SECTIONS:
+            if sec not in d:
+                schema_fail.append(f"§6.1 範例缺區塊 {sec!r}")
+        for k in d:
+            if k not in ps.SECTIONS:
+                schema_fail.append(f"§6.1 範例多出區塊 {k!r}，SECTIONS 沒收錄")
+        if tuple(d.get("context", {})) != ps.CONTEXT_KEYS:
+            schema_fail.append(f"context 鍵不符：範例 {tuple(d.get('context', {}))} vs schema {ps.CONTEXT_KEYS}")
+        for j in d.get("judgments", []):
+            for k in ps.JUDGMENT_REQUIRED:
+                if k not in j:
+                    schema_fail.append(f"judgment {j.get('id')} 缺必填鍵 {k!r}")
+            if len(j.get("evidence", [])) < ps.MIN_EVIDENCE:
+                schema_fail.append(f"judgment {j.get('id')} 的 evidence 少於 {ps.MIN_EVIDENCE}")
+        for r in d.get("residual_handling", []):
+            if r.get("action") not in ps.RESIDUAL_ACTIONS:
+                schema_fail.append(f"residual action {r.get('action')!r} 不在 {ps.RESIDUAL_ACTIONS}")
+        if len(ps.REJECT_RULES) != 6:
+            schema_fail.append(f"§6.2 是六條，REJECT_RULES 有 {len(ps.REJECT_RULES)} 條")
+        print(f"[5] plan_schema 對照 §6.1 範例：{'一致' if not schema_fail else '有出入'}")
+
+# [6] 最小測資：欄位對得上契約、尺寸鏈閉合、evidence 解析得到
+fixture_fail = []
+if "core/fields.py" not in empty:
+    import csv
+    sys.path.insert(0, str(ROOT / "tests" / "fixtures"))
+    import make_case_min
+    fields = importlib.import_module("core.fields")
+    case = importlib.import_module("core.case")
+    try:
+        fx = make_case_min.build()                  # 冪等：照 fields.py 重生一次
+
+        for key in make_case_min.ROWS:
+            with case.path(fx, key).open(encoding="utf-8") as f:
+                header = tuple(next(csv.reader(f)))
+            if header != tuple(fields.BY_FILE[key]):
+                fixture_fail.append(f"測資 {key} 的欄位與 core.fields 不符")
+
+        def rows(key):
+            with case.path(fx, key).open(encoding="utf-8") as f:
+                return list(csv.DictReader(f))
+
+        # §11 第 4 步的第一筆迴歸測試：403 + 403 = 806，且鏈閉合
+        members = [r for r in rows("chain_members") if r["chain_id"] == "c001"]
+        chain = next(r for r in rows("chains") if r["chain_id"] == "c001")
+        parts = [float(m["value"]) for m in members]
+        if sum(parts) != float(chain["total_value"]):
+            fixture_fail.append(f"尺寸鏈 c001：{'+'.join(str(int(p)) for p in parts)}"
+                                f" = {sum(parts):.0f}，但 total_value 是 {chain['total_value']}")
+        if float(chain["delta"]) != 0 or chain["closed"] != "1":
+            fixture_fail.append(f"尺寸鏈 c001 應為閉合（delta=0, closed=1），實際 "
+                                f"delta={chain['delta']} closed={chain['closed']}")
+
+        # §6.2 規則 2 的前置：每個 `命名空間#id` 都要解析得到，且該 id 真的在 CSV 裡
+        index = {k: {r[fields.ID_COLUMN[k]] for r in rows(k)}
+                 for k in make_case_min.ROWS if k in fields.ID_COLUMN}
+        if "core/classes.py" not in empty:              # 測資的類別必須合法
+            C = importlib.import_module("core.classes")
+            for key in ("detections", "elements"):
+                for r in rows(key):
+                    if not C.is_valid(r["class_name"]):
+                        fixture_fail.append(f"測資 {key} 的 class_name "
+                                            f"{r['class_name']!r} 不在 core.classes")
+        for key in ("detections", "elements"):
+            for r in rows(key):
+                for ref in filter(None, r["evidence"].split("|")):
+                    ns, _, rid = ref.partition("#")
+                    if ns not in fields.EVIDENCE_NS:
+                        fixture_fail.append(f"{key} 的 evidence {ref!r}：前綴不在 EVIDENCE_NS")
+                        continue
+                    fk, _col = fields.EVIDENCE_NS[ns]
+                    if rid not in index.get(fk, set()):
+                        fixture_fail.append(f"{key} 的 evidence {ref!r}：{fk} 裡查無此 id")
+    except Exception as exc:                        # 契約改了、測資沒跟上
+        fixture_fail.append(f"測資重建失敗（契約與測資不同步）：{type(exc).__name__}: {exc}")
+
+    n = sum(len(v) for v in make_case_min.ROWS.values())
+    print(f"[6] 最小測資（403+403=806）：{'通過' if not fixture_fail else '有問題'}"
+          f"（{len(make_case_min.ROWS)} 個 CSV／{n} 列）")
+
+failures = import_fail + config_fail + contract_fail + schema_fail + fixture_fail
 if failures:
     print("\n✗ 有問題：")
     for f in failures:

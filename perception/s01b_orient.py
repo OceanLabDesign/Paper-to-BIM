@@ -21,7 +21,9 @@ orientation 欄當紀錄。
 
 from pathlib import Path
 
-ROTATIONS = (0, 90, 180, 270)  # 裁決 §1
+from core.fields import OFFSETS   # tile_id,page,x,y,w,h,rotation,upright_file
+
+ROTATIONS = (0, 90, 180, 270)    # 裁決 §1
 
 
 def run(case_dir: Path) -> None:

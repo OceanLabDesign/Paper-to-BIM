@@ -1,0 +1,2 @@
+element_id,sheet_id,class_name,geom_wkt,thickness_cm,thickness_src,source_lines,conf,evidence,provenance,quality_zone,status
+x001,A-2_1F,wall,"LINESTRING(0 14, 952 14)",24,measured,l001|l002,0.91,det#d001,rule_v1,good,proposed

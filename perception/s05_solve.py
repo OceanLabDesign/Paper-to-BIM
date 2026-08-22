@@ -16,7 +16,9 @@
 
 from pathlib import Path
 
-CONFLICT_SOURCE = "chain_closure"  # 裁決 §5
+from core.fields import CONFLICT_SOURCES
+
+CONFLICT_SOURCE = CONFLICT_SOURCES[0]   # "chain_closure"（裁決 §5）
 
 
 def run(case_dir: Path) -> None:
