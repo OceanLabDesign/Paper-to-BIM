@@ -28,12 +28,27 @@ OFFSETS = ("tile_id", "page", "x", "y", "w", "h", "rotation", "upright_file")
 # 【草案】規格 §8：圖種/樓層/比例/單位/方向/圖框範圍/標題欄/版本線索
 # orientation 抄自 OFFSETS.rotation（裁決 §1），是紀錄不是重新判斷。
 # 前五欄（kind…orientation）是 plan 的 context 來源，中樞不得更改（§6.1、§6.2 規則 6）。
+# ★ 2026-08-22 修正：原本有 `page` 欄，隱含「一頁＝一張圖」。實測不成立 ——
+# 原圖是 A1／A2，事務所影印機最多 A3，**一張圖被拆成 N 張 A3**（N 不固定）。
+# 片與圖的歸屬改由 SHEET_TILES 這張 join table 表達（見 ADR 0009）。
+# 樓層存**範圍**：drawing_floor 保留圖上原樣的寫法（「四樓～十樓」），
+# floor_from / floor_to 是正規化整數（地下一樓 = -1，一樓 = 1），供程式比對。
 SHEETS = (
-    "sheet_id", "page",
-    "kind", "floor", "scale", "unit", "orientation",   # ← plan context 五欄
+    "sheet_id",
+    "kind", "drawing_floor", "floor_from", "floor_to",
+    "scale", "unit", "orientation",
+    "drawing_no", "drawing_name", "tile_count",
     "frame_wkt", "title_block_wkt",
     "version_hint", "note",
 )
+
+# 【草案】ADR 0009：哪一片屬於哪一張圖、在網格的哪一格。
+# row/col 從 0 起算，左上為 (0,0)。★ 網格形狀不固定 ——
+# A2 可能是 1×2、A1 是 2×2、A0 可能是 2×4，**不要假設 N=4**。
+SHEET_TILES = ("tile_id", "sheet_id", "row", "col", "part",
+               "evidence", "conf", "status", "note")
+TILE_PARTS = ("圖名區", "簽核區", "兩者皆有", "無")
+TILE_STATUS = ("assigned", "ambiguous", "unassigned")
 
 # 【草案】規格 §3：排除帶（圖框、標題欄、印章區）
 EXCLUDE = ("exclude_id", "sheet_id", "kind", "bbox_wkt", "note")
@@ -180,6 +195,7 @@ COORD_SOURCES = ("chain", "measure")
 # ─────────────────────────────────────────────────────────────
 BY_FILE = {
     "offsets": OFFSETS, "sheets": SHEETS, "exclude": EXCLUDE, "quality": QUALITY,
+    "sheet_tiles": SHEET_TILES,
     "lines": LINES, "texts": TEXTS, "detections": DETECTIONS, "elements": ELEMENTS,
     "readings": READINGS, "chains": CHAINS, "chain_members": CHAIN_MEMBERS,
     "verified": VERIFIED, "walls": WALLS, "columns": COLUMNS,
@@ -189,7 +205,8 @@ BY_FILE = {
 # 每個 CSV 的 id 欄（給 validate 查 id 存在性用）
 ID_COLUMN = {
     "offsets": "tile_id", "sheets": "sheet_id", "exclude": "exclude_id",
-    "quality": "quality_id", "lines": "line_id", "texts": "text_id",
+    "quality": "quality_id", "sheet_tiles": "tile_id",
+    "lines": "line_id", "texts": "text_id",
     "detections": "det_id", "elements": "element_id", "readings": "id",
     "chains": "chain_id", "walls": "wall_id", "columns": "column_id",
     "conflicts": "conflict_id",

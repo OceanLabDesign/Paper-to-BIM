@@ -1,2 +1,2 @@
-sheet_id,page,kind,floor,scale,unit,orientation,frame_wkt,title_block_wkt,version_hint,note
-A-2_1F,1,plan,1F,100,cm,0,"POLYGON((0 0,1200 0,1200 900,0 900,0 0))","POLYGON((900 0,1200 0,1200 150,900 150,900 0))",,最小測資
+sheet_id,kind,drawing_floor,floor_from,floor_to,scale,unit,orientation,drawing_no,drawing_name,tile_count,frame_wkt,title_block_wkt,version_hint,note
+A-2_1F,plan,一樓,1,1,100,cm,0,A-2,一樓平面圖,1,"POLYGON((0 0,1200 0,1200 900,0 900,0 0))","POLYGON((900 0,1200 0,1200 150,900 150,900 0))",,最小測資

@@ -1,0 +1,2 @@
+tile_id,sheet_id,row,col,part,evidence,conf,status,note
+p01_t01,A-2_1F,0,0,兩者皆有,text#t001,1.0,assigned,最小測資：單片即整張圖

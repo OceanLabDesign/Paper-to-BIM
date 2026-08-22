@@ -25,6 +25,7 @@ FILES = {
     "offsets":       "01_offsets.csv",   # 放置矩陣＋rotation＋upright_file（裁決 §1）
     "sheets":        "02_sheets.csv",    # 圖種/樓層/比例/單位/方向/圖框範圍/版本
     "exclude":       "02_exclude.csv",   # 排除帶（圖框、標題欄、印章區）
+    "sheet_tiles":   "02_sheet_tiles.csv",  # 片→圖的歸屬與網格位置（ADR 0009）
     "quality":       "02_quality.csv",   # 品質地圖（分區塊：對比度/雜訊/可信度）
     "lines":         "03_lines.csv",
     "texts":         "03_texts.csv",

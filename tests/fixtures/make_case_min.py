@@ -27,14 +27,19 @@ OUT = Path(__file__).resolve().parent / "case_min"
 # 每個 CSV 一份資料列。鍵＝欄位名，缺的欄位留空。
 # id 命名對得上 core.fields.EVIDENCE_NS 的前綴：det#d001、chain#c001、read#r001…
 ROWS = {
-    "sheets": [dict(sheet_id="A-2_1F", page=1, kind="plan", floor="1F",
+    "sheets": [dict(sheet_id="A-2_1F", kind="plan",
+                    drawing_floor="一樓", floor_from=1, floor_to=1,
                     scale=100, unit="cm", orientation=0,
+                    drawing_no="A-2", drawing_name="一樓平面圖", tile_count=1,
                     frame_wkt="POLYGON((0 0,1200 0,1200 900,0 900,0 0))",
                     title_block_wkt="POLYGON((900 0,1200 0,1200 150,900 150,900 0))",
                     version_hint="", note="最小測資")],
     "exclude": [dict(exclude_id="e01", sheet_id="A-2_1F", kind="title_block",
                      bbox_wkt="POLYGON((900 0,1200 0,1200 150,900 150,900 0))",
                      note="標題欄")],
+    "sheet_tiles": [dict(tile_id="p01_t01", sheet_id="A-2_1F", row=0, col=0,
+                         part="兩者皆有", evidence="text#t001", conf=1.0,
+                         status="assigned", note="最小測資：單片即整張圖")],
     "quality": [dict(quality_id="q01", sheet_id="A-2_1F", block_x=0, block_y=0,
                      block_px=256, contrast=0.82, noise=0.05, stroke_density=0.11,
                      level="good")],
