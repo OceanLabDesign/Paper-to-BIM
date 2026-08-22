@@ -24,6 +24,15 @@ MVP 輸出 **DXF 優先**；IFC exporter 等 ArchiCAD 四道牆往返測試通�
 
 from pathlib import Path
 
+from execution.exporters.registry import get_exporter
 
-def execute(case_dir, plan: dict) -> None:
-    raise NotImplementedError("s07_execute 未實作（§11 第 5 步）")
+
+def execute(case_dir, plan: dict, target: str = "dxf") -> None:
+    """把 plan 落地。target 選匯出目標，見 execution/exporters/registry.py。
+
+    預設 dxf —— §12：MVP 輸出 DXF 優先，IFC 等 ArchiCAD 往返測試通過才開。
+    """
+    raise NotImplementedError(
+        "s07_execute 未實作（§11 第 5 步）。實作時：get_exporter(target).export(plan, out_dir)，"
+        "07_walls.csv / 07_columns.csv 也在這裡從 plan 落地。"
+    )

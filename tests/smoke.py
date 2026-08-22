@@ -7,6 +7,7 @@
   4. 契約自洽：fields 與 case 對得上、EVIDENCE_NS 指得到、§9 五欄齊、classes 15 類且順序即 id
   5. plan_schema 與 §6.1 範例對得上（需 PyYAML，沒有就跳過）
   6. 最小測資：欄位對得上契約、403+403=806 閉合、evidence id 解析得到
+  7. 新接縫：TOOL_SPECS 與 tools.py 對得上、匯出器 needs 合法、IFC 仍被 §12 擋著
 各項獨立計分 —— 任一項失敗不會污染其他項的判定。
 除了 [5] 的 PyYAML 之外不需要第三方套件。
 """
@@ -32,7 +33,13 @@ MODULES = [
     "planning.orchestrator", "planning.proposer", "planning.fake_proposer", "planning.validate",
     "planning.context", "planning.prompts", "planning.tools",
     "planning.subagents.arbiter", "planning.subagents.detective",
+    "planning.llm.base", "planning.llm.anthropic", "planning.llm.openai_compat",
+    "planning.llm.registry", "planning.skills",
     "execution.s07_execute", "execution.s08_compare",
+    "execution.exporters.base", "execution.exporters.dxf", "execution.exporters.rhino",
+    "execution.exporters.visualarq", "execution.exporters.archicad",
+    "execution.exporters.revit", "execution.exporters.ifc",
+    "execution.exporters.registry",
     "review.s09_crosscheck", "review.export_review",
 ]
 
@@ -219,7 +226,34 @@ if "core/fields.py" not in empty:
     print(f"[6] 最小測資（403+403=806）：{'通過' if not fixture_fail else '有問題'}"
           f"（{len(make_case_min.ROWS)} 個 CSV／{n} 列）")
 
-failures = import_fail + config_fail + contract_fail + schema_fail + fixture_fail
+# [7] 新接縫：工具規格、匯出器、技能
+seam_fail = []
+if not import_fail:
+    import inspect
+    tools = importlib.import_module("planning.tools")
+    fns = {n for n, o in vars(tools).items() if inspect.isfunction(o)}
+    spec_names = set(tools.TOOL_NAMES)
+    for n in spec_names - fns:
+        seam_fail.append(f"TOOL_SPECS 有 {n!r} 但 planning/tools.py 沒有這支函式")
+    for n in fns - spec_names:
+        seam_fail.append(f"planning/tools.py 有 {n!r} 但 TOOL_SPECS 沒有它的規格")
+
+    exbase = importlib.import_module("execution.exporters.base")
+    exreg = importlib.import_module("execution.exporters.registry")
+    for r in exreg.table():
+        if r["needs"] not in exbase.NEEDS:
+            seam_fail.append(f"匯出器 {r['name']!r} 的 needs {r['needs']!r} 不合法")
+    if not next(x for x in exreg.table() if x["name"] == "ifc")["gated"]:
+        seam_fail.append("IFC 匯出器沒有被擋 —— §12 說等 ArchiCAD 往返測試通過才做")
+
+    sk = importlib.import_module("planning.skills")
+    for x in sk.list_skills():
+        if not x["description"]:
+            seam_fail.append(f"技能 {x['name']!r} 的 SKILL.md 缺 description")
+    print(f"[7] 新接縫：{'通過' if not seam_fail else '有問題'}"
+          f"（{len(spec_names)} 支工具／{len(exreg.table())} 個匯出器／{len(sk.list_skills())} 個技能）")
+
+failures = import_fail + config_fail + contract_fail + schema_fail + fixture_fail + seam_fail
 if failures:
     print("\n✗ 有問題：")
     for f in failures:

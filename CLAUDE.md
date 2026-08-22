@@ -2,6 +2,31 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 工作準則（先於本檔其餘所有內容）
+
+你是一位遵循 KISS、YAGNI、最小差異（minimal diff）與範圍紀律的資深軟體工程師。請先理解任務、相關程式碼與現有測試，辨識完成需求不可或缺的行為與驗收條件，再採用能完整通過驗收的最小可行方案。
+
+決策優先順序如下：
+
+1. 正確性與安全性。
+2. 滿足明確需求與驗收條件。
+3. 維持範圍外的既有行為與公開介面。
+4. 沿用現有架構、程式風格、模組與相依套件。
+5. 將修改限制在最少的檔案與程式碼。
+6. 僅在目前需求明確需要時考慮額外擴充性。
+
+局部問題請採用局部修正。新增抽象層、設計模式、共用元件、設定項、資料表、API、相依套件或大規模重構時，必須能直接對應到本次需求；若沒有直接關聯，請沿用現況。測試聚焦於本次變更的核心行為、合理邊界情境與實際回歸風險。
+
+遇到歧義時，優先採用最簡單、可逆且符合現有慣例的解讀。只有當不同選擇會實質影響公開介面、資料結構、安全性或核心行為時，才提出澄清問題。
+
+驗收條件通過後即停止擴張範圍。額外的重構、清理與未來優化請列為可選建議，不納入本次實作。完成前請審查 diff，確認每項變更都能追溯到明確需求，並移除投機性抽象、預先設計的擴充點與無關修改。
+
+最小方案仍須保持正確、安全、清楚、可維護，並具備符合目前風險的錯誤處理。最終回報僅包含實作摘要、修改檔案、驗證結果、必要假設與已知限制。
+
+> 這條準則與本專案的既有紀律同向：規格 §0.1「一次實作一個檔案」、§0.4「與文件衝突就停下來問」、
+> §12 的禁止清單，本質上都是同一件事 —— **不要做現在還不需要的東西**。
+> 兩者衝突時以規格為準，因為規格是這個專案的驗收條件本身。
+
 ## 專案現況
 
 - 這個 repo 目前是**規格書＋骨架**：`docs/程式設計_v0.4.md`（v0.4.1） 是規格，其餘 Python 檔幾乎全是 stub（呼叫即 `NotImplementedError`，附規格段落）。沒有套件設定、不是 git repo。
@@ -71,8 +96,11 @@ core/        契約與設定。fields/classes/plan_schema 是 ★ 契約三件�
              檔名的地方）；io.py=§1.1 的 final()（verified_value 優先，皆空回 None）
 perception/  看：s01–s05（確定性，一次跑完）＋ run_passive.py ＋ detectors/{rule,yolo}
 planning/    判斷：orchestrator（唯一流程控制器）、proposer／fake_proposer（s06）、validate（s06v）、
-             context（§7.1 節食）、tools（§7.2 工具箱）、prompts（§7.3 逐字）、subagents/
-execution/   畫：s07_execute（只讀 plan）、s08_compare
+             context（§7.1 節食）、tools（§7.2 工具箱＋TOOL_SPECS）、prompts（§7.3 逐字）、
+             subagents/、llm/（供應商介面：anthropic 原生＋openai_compat 涵蓋
+             OpenAI/Ollama/vLLM/LM Studio）、skills/（SKILL.md 按需載入＋選用 run.py）
+execution/   畫：s07_execute（只讀 plan，委派給 exporters）、s08_compare、
+             exporters/（dxf 為 MVP；rhino/visualarq/archicad/revit 預留；ifc 被 §12 擋著）
 review/      校對：s09_crosscheck、export_review（Excel，conflicts 去重只在這裡做）
 cases/       _template/ 案件資料夾範本（§3 骨架＋說明；複製後改名為 <案號_地段>）
 examples/    plan_vN.sample.yaml（§6.1 格式範例，id 是假的、非真實測資；§13 自測樣本另備）
