@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# macOS
+.DS_Store
+
+# Claude Code 本機設定（每台機器不同，不進版控）
+.claude/settings.local.json
+
+# ── 案件資料 ─────────────────────────────────────────────
+# 掃描圖、中間產物、輸出一律不進版控：
+#   00_raw 的原始 PDF 可能含個資與著作權；
+#   tiles / crops / DXF / CSV 體積大，而且照定義都能從 00_raw 重生。
+# 只保留 §3 的資料夾骨架（.gitkeep）。
+cases/**
+!cases/**/
+!cases/**/.gitkeep
+!cases/_template/README.md
+
+# 內部決策/溝通文件：留在本機，不進版控
+待決事項.md
+待決事項_裁決.md

@@ -1,0 +1,40 @@
+# v0.4 §6.1 的結構範例，逐字轉錄。
+# 檔名用 vN：§6.1 的範例本身是 version: 2（based_on: plan_v1、含 residual_handling），
+# 不要誤讀成「第一輪的計畫長這樣」—— v1 的 based_on 填 null、沒有 residual_handling。
+# ⚠ 這是「格式範例」，不是 68 年案的真實計畫 —— 裡面的 id（pair#12、chain#c003…）
+#   在真實 CSV 裡不存在，拿去跑 validate 會被規則 2 退件，那是正確行為。
+#   planning/validate.py 的自測（§13）需要的是「68 年案 plan_v1 樣本」，那份要另外備。
+meta:
+  case: <案號>_<地段>
+  sheet: A-2_一樓平面
+  version: 2
+  based_on: plan_v1        # v1 填 null
+context:                   # 來自 02_sheets，中樞不得自行更改
+  kind: plan
+  floor: 1F
+  scale: 100
+  unit: cm
+  orientation: 0
+judgments:
+  - id: J001
+    type: wall             # 只能用 core/classes.py 的類別
+    geometry: { axis_wkt: "LINESTRING(0 0, 806 0)", thickness: 24 }
+    evidence: [pair#12, chain#c003]     # ★ 必填，至少一個
+    confidence: 0.9
+    note: 厚度由線對間距 28px 換算
+overrides:                 # 推翻視神經標籤必須留痕
+  - label: det#x0101
+    action: reject
+    reason: 位於圖框排除帶（02_exclude#e02）
+conflicts:                 # 對不起來的寫這裡，不准抹平
+  - kind: chain_closure
+    detail: 二樓X向合計12200，總尺寸12000，差200
+    involved: [chain#c007, read#p02_d0038]
+uncertain:
+  - judgment: J007
+    reason: 摺痕帶線證據中斷（quality#q13）
+    basis: 依尺寸鏈補全，標低信心
+residual_handling:         # v2 起必填：逐條回應上一輪殘差
+  - residual: R003
+    action: revise         # revise（改判斷）或 report（升級成 conflict）
+    detail: J004 厚度 24→15，證據 pair#88
