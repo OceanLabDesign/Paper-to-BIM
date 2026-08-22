@@ -2,7 +2,7 @@
 
 檢查三件事：
   1. 每支模組都 import 得起來（骨架接得上，stub 只在**呼叫時**才炸）
-  2. core/config.py 的實測值沒有被「順手優化」（§10 逐項比對）
+  2. core/config.py 的實測值沒有被「順手優化」（§10 逐項比對），且 README 引用的換算一致
   3. 建造順序（§11）第 1 步：契約三件套寫了沒
   4. 契約自洽：fields 與 case 對得上、EVIDENCE_NS 指得到、§9 五欄齊、classes 15 類且順序即 id
   5. plan_schema 與 §6.1 範例對得上（需 PyYAML，沒有就跳過）
@@ -77,6 +77,17 @@ for key, want in EXPECTED_CONFIG.items():
         config_fail.append(f"config.{key} = {got!r}，§10 是 {want!r}")
 if abs(cfg.PX_PER_CM - 1.1811023622047243) > 1e-9:
     config_fail.append(f"config.PX_PER_CM = {cfg.PX_PER_CM!r}，§10 換算應 ≈1.181")
+# README 是門面，它引用的換算數字必須與 config 一致，不能悄悄說謊
+readme = ROOT / "README.md"
+if readme.exists():
+    rt = readme.read_text(encoding="utf-8")
+    for label, val in (("PX_PER_CM", f"{cfg.PX_PER_CM:.3f}"),
+                       ("24cm→px", f"{24 * cfg.PX_PER_CM:.0f} px"),
+                       ("806cm→px", f"{806 * cfg.PX_PER_CM:.0f} px"),
+                       ("自適應參數", f"({cfg.ADAPTIVE_BLOCK}, {cfg.ADAPTIVE_C})")):
+        if val not in rt:
+            config_fail.append(f"README 沒有引用正確的 {label}＝{val}（改了 config 要同步改門面）")
+
 print(f"[2] §10 實測參數：{'一致' if not config_fail else '有出入'}"
       f"（PX_PER_CM={cfg.PX_PER_CM:.4f}、牆24cm≈{24 * cfg.PX_PER_CM:.0f}px、"
       f"總寬806cm≈{806 * cfg.PX_PER_CM:.0f}px）")
