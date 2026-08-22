@@ -89,11 +89,32 @@ def understand(b, p):
         if not cl:
             continue
 
-        def ext(c):
-            P = np.array([q for s in c["seg"] for q in ((s[0], s[1]), (s[2], s[3]))], float)
-            u = np.array([math.cos(math.radians(k)), math.sin(math.radians(k))])
-            t = P @ u
-            return P[t.argmin()], P[t.argmax()]
+        u = np.array([math.cos(math.radians(k)), math.sin(math.radians(k))])
+
+        def runs(c, max_gap):
+            """沿線把碎片切成「連續段」。
+
+            ★ 這是「斷斷續續的殘線 → 一整條線」的關鍵，而且**兩個方向都會錯**：
+              門檻太高 → 碎片在合併前就被丟掉，一道牆變成幾段短線；
+              不看間隙 → 同一條無限直線上兩道不同的牆被接成一道，橫跨整張圖。
+            正解是沿線排序後，只接間隙小於 max_gap 的；間隙太大就切開。
+            """
+            iv = []
+            for s in c["seg"]:
+                t0 = s[0] * u[0] + s[1] * u[1]
+                t1 = s[2] * u[0] + s[3] * u[1]
+                iv.append((min(t0, t1), max(t0, t1)))
+            iv.sort()
+            out, cur = [], list(iv[0])
+            for a, b in iv[1:]:
+                if a - cur[1] <= max_gap:
+                    cur[1] = max(cur[1], b)
+                else:
+                    out.append(tuple(cur)); cur = [a, b]
+            out.append(tuple(cur))
+            base = np.array(c["seg"][0][:2], float)
+            off = base - u * (base @ u)          # 線上的原點
+            return [(off + u * a, off + u * b, b - a) for a, b in out]
 
         used, i = set(), 0
         while i < len(cl) - 2:                                  # 梳狀 → 樓梯
@@ -106,7 +127,9 @@ def understand(b, p):
                 else:
                     break
             if len(run) >= p["minsteps"]:
-                p0, _ = ext(cl[run[0]]); _, p1 = ext(cl[run[-1]])
+                r0 = max(runs(cl[run[0]], p["bridge"]), key=lambda r: r[2])
+                r1 = max(runs(cl[run[-1]], p["bridge"]), key=lambda r: r[2])
+                p0, p1 = r0[0], r1[1]
                 stairs.append({"ang": k, "n": len(run), "tread_cm": round(gm / PX_PER_CM, 1),
                                "o0": cl[run[0]]["o"], "o1": cl[run[-1]]["o"],
                                "p0": p0.tolist(), "p1": p1.tolist()})
@@ -116,15 +139,32 @@ def understand(b, p):
         rest = [c for idx, c in enumerate(cl) if idx not in used]
         for a_, b_ in zip(rest, rest[1:]):                      # 線對 → 牆
             d = b_["o"] - a_["o"]
-            if p["wall_lo"] <= d <= p["wall_hi"]:
-                q0, q1 = ext(a_)
+            if not (p["wall_lo"] <= d <= p["wall_hi"]):
+                continue
+            ra, rb = runs(a_, p["bridge"]), runs(b_, p["bridge"])
+            for q0, q1, L in ra:                                # 逐段，不是整條
+                if L < p["min_wall"]:
+                    continue
+                t0, t1 = q0 @ u, q1 @ u
+                # 對面那條線也要在這一段上有東西，才算一道牆
+                if not any(min(t1, s1 @ u) - max(t0, s0 @ u) > L * 0.35 for s0, s1, _ in rb):
+                    continue
                 walls.append({"ang": k, "off": (a_["o"] + b_["o"]) / 2,
                               "th_cm": round(d / PX_PER_CM, 1),
                               "p0": q0.tolist(), "p1": q1.tolist(),
-                              "len_m": round(math.dist(q0, q1) / PX_PER_CM / 100, 2)})
+                              "len_m": round(L / PX_PER_CM / 100, 2)})
     keep = []
     for w in sorted(walls, key=lambda r: -r["len_m"]):
-        if not any(abs(x["ang"] - w["ang"]) < 3 and abs(x["off"] - w["off"]) < 45 for x in keep):
+        u = np.array([math.cos(math.radians(w["ang"])), math.sin(math.radians(w["ang"]))])
+        t0, t1 = np.array(w["p0"]) @ u, np.array(w["p1"]) @ u
+        dup = False
+        for x in keep:                                  # 同線且區間重疊才算重複
+            if abs(x["ang"] - w["ang"]) > 3 or abs(x["off"] - w["off"]) > 30:
+                continue
+            s0, s1 = np.array(x["p0"]) @ u, np.array(x["p1"]) @ u
+            if min(t1, s1) - max(t0, s0) > 0.4 * (t1 - t0):
+                dup = True; break
+        if not dup:
             keep.append(w)
     return keep, stairs, len(ls)
 
@@ -188,11 +228,12 @@ HTML = """<!doctype html><meta charset=utf-8><title>Paper-to-BIM 對照</title>
 </div>
 <script>
 const P=[["block","二值化區塊",11,61,31,2],["c","二值化 C",2,25,12,1],
- ["min_area","去雜點面積",1,60,12,1],["hough","Hough 門檻",40,200,80,5],
- ["minlen","最短線段",80,500,250,10],["maxgap","允許斷點",2,60,30,2],
- ["angtol","角度容差",1,10,4,1],["minink","線群最少墨水",100,3000,700,50],
+ ["min_area","去雜點面積",1,60,12,1],["hough","Hough 門檻",30,200,50,5],
+ ["minlen","最短線段",40,500,60,10],["maxgap","允許斷點",2,60,30,2],
+ ["angtol","角度容差",1,10,4,1],["minink","線群最少墨水",50,3000,150,25],
  ["wall_lo","牆厚下限 px",6,30,12,1],["wall_hi","牆厚上限 px",20,80,42,1],
- ["minsteps","樓梯最少階數",3,12,5,1]];
+ ["minsteps","樓梯最少階數",3,12,5,1],
+ ["bridge","可接合的斷點 px",10,300,60,10],["min_wall","最短牆 px",40,600,120,10]];
 const ctl=document.getElementById('ctl');
 P.forEach(([k,n,mn,mx,d,st])=>{ctl.insertAdjacentHTML('beforeend',
  `<label>${n}<span class=v id=v_${k}>${d}</span></label>
@@ -250,7 +291,8 @@ class H(BaseHTTPRequestHandler):
             p = {"hough": gi("hough", 80), "minlen": gi("minlen", 250),
                  "maxgap": gi("maxgap", 30), "angtol": gi("angtol", 4),
                  "minink": gi("minink", 700), "wall_lo": gi("wall_lo", 12),
-                 "wall_hi": gi("wall_hi", 42), "minsteps": gi("minsteps", 5)}
+                 "wall_hi": gi("wall_hi", 42), "minsteps": gi("minsteps", 5),
+                 "bridge": gi("bridge", 60), "min_wall": gi("min_wall", 120)}
             walls, stairs, nseg = understand(b, p)
             rec = render(gray.shape, walls, stairs)
             th = [w["th_cm"] for w in walls]
