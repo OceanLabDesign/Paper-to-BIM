@@ -12,7 +12,16 @@ ezdxf，純檔案輸出。**AutoCAD 這條路就是 DXF** —— 不需要另寫
 閘門：DXF 在 ArchiCAD 打得開（§11 第 5 步）。
 """
 
+import re
+
 from execution.exporters.base import Exporter
+
+LAYER = "PB_WALL"
+
+
+def _endpoints(wkt):
+    return [(float(x), float(y))
+            for x, y in re.findall(r"(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)", wkt)]
 
 
 class Dxf(Exporter):
@@ -23,4 +32,38 @@ class Dxf(Exporter):
     notes = "線段／polyline／hatch。AutoCAD 沒有牆物件，這是天花板不是取捨。"
 
     def export(self, plan, out_dir) -> list:
-        raise NotImplementedError("DXF 匯出未實作（§11 第 5 步）")
+        """plan → out/*.dxf。單位公分，牆心線畫成 LINE。
+
+        ⚠ 只讀 plan。任何一筆 judgment 的幾何若無法從 plan 本身取得，
+        **不要回頭去讀 03/04 補** —— 那是中樞沒說清楚，該退件不是該補救。
+        """
+        import ezdxf
+        from core.config import ASSUMED_SRC, DRAFT_SUFFIX
+
+        doc = ezdxf.new("R2010", setup=True)
+        doc.header["$INSUNITS"] = 5                     # 5 = 公分
+        msp = doc.modelspace()
+        doc.layers.add(LAYER, color=1)
+
+        drafty = False
+        for j in plan.get("judgments", []):
+            geom = j.get("geometry", {})
+            wkt = geom.get("axis_wkt")
+            if not wkt:
+                continue
+            pts = _endpoints(wkt)
+            if len(pts) < 2:
+                continue
+            msp.add_line(pts[0], pts[-1],
+                         dxfattribs={"layer": LAYER,
+                                     "thickness": 0})
+            if geom.get("thickness_src") == ASSUMED_SRC:
+                drafty = True
+
+        meta = plan.get("meta", {})
+        stem = f"{meta.get('sheet') or 'sheet'}_v{meta.get('version', 1)}"
+        if drafty:
+            stem += DRAFT_SUFFIX
+        path = out_dir / f"{stem}{self.ext}"
+        doc.saveas(path)
+        return [path]

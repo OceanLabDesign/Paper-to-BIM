@@ -27,12 +27,12 @@ from pathlib import Path
 from execution.exporters.registry import get_exporter
 
 
-def execute(case_dir, plan: dict, target: str = "dxf") -> None:
+def execute(case_dir, plan: dict, target: str = "dxf") -> list:
     """把 plan 落地。target 選匯出目標，見 execution/exporters/registry.py。
 
     預設 dxf —— §12：MVP 輸出 DXF 優先，IFC 等 ArchiCAD 往返測試通過才開。
+    **只讀 plan**，不讀 03/04（§8 腦手分離的實作保證）。
     """
-    raise NotImplementedError(
-        "s07_execute 未實作（§11 第 5 步）。實作時：get_exporter(target).export(plan, out_dir)，"
-        "07_walls.csv / 07_columns.csv 也在這裡從 plan 落地。"
-    )
+    out_dir = Path(case_dir) / "out"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    return get_exporter(target).export(plan, out_dir)
