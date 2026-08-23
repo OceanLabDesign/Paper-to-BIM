@@ -4,6 +4,12 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
+.venv-build/
+
+# PyInstaller 的產物（一次 333MB：dist/ 同時有 .app 與 COLLECT 目錄）
+build/
+dist/
+*.spec.bak
 
 # macOS
 .DS_Store
@@ -31,3 +37,19 @@ cases/**
 *.PDF
 *.tif
 *.tiff
+
+# ── 安裝程式（install.py）的產物 ─────────────────────────
+# 都是本機產生的，跟這台機器的路徑與 Python 綁在一起，不該進版控。
+# ⚠ 註解只能獨立成行 —— gitignore 只認**行首**的 #，
+#   寫在 pattern 後面會讓整串（含空白與註解文字）變成檔名的一部分。
+# 縮圖快取（案件資料夾內，重跑會重建）
+.thumbs/
+# 啟動器：macOS 的 .command 與 .app 外殼、Windows 的 .bat
+Paper-to-BIM.command
+Paper-to-BIM.bat
+Paper-to-BIM.app/
+
+# ── 不屬於本專案的檔案 ───────────────────────────────────
+# ★ 同 *.pdf 那條的教訓：放在根目錄的東西 cases/** 擋不到，
+#   會被 git add -A 掃進公開 repo。無關的檔案就明確擋掉。
+farside_brand_assets_v2.html

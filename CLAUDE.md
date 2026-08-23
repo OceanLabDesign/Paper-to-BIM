@@ -40,9 +40,42 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 指令
 
 ```bash
-python3 tests/smoke.py                          # 骨架煙霧測試：32 支模組 import + §10 參數比對 + §11 進度
+python3 install.py                              # 安裝：偵測系統→建 .venv→裝相依→產出啟動器
+python3 install.py --check                      # 只偵測不安裝
+python3 tools/desktop.py                        # ★ 主程式：原生視窗工作站（選案→排圖→校對→成果→進度）
+python3 tools/desktop.py --selftest             # 不開視窗，檢查資料層與繪圖路徑
+python3 tests/smoke.py                          # 骨架煙霧測試：模組 import + §10 參數比對 + §11 進度
+python3 -m perception.s01c_register cases/<案號_地段>    # 度量層：算每片的 (dx, dy, px_per_cm)
 python3 -m planning.orchestrator cases/<案號_地段>       # 全迴圈入口（目前跑到第一個 stub 就停）
 ```
+
+**`tools/desktop.py` 是唯一的應用程式，之後的開發以它為主。** 原生 tkinter 視窗，
+**不依賴瀏覽器、沒有新增任何相依**。
+
+```
+tools/desktop.py   畫面與流程（唯一的入口）
+tools/win95.py     Windows 95 外觀的控件工具箱
+tools/arrange.py   排圖規則：提案、覆寫、匯出契約、對接預覽
+tools/review.py    校對規則：裁定、重建圖、問 AI、訓練資料硬閘
+```
+
+規則不放進畫面，是為了能單獨測、也能被批次腳本呼叫。
+舊的 `arrange_ui` / `review_ui` / `compare_ui` / `studio`（瀏覽器版）都已收掉。
+
+**散布走安裝程式，不走免安裝執行檔。** `install.py` 偵測系統 → 建 `.venv` →
+裝 `requirements.txt` → 產出啟動器（macOS 是 `.app` ＋ `.command`，Windows 是 `.bat`）。
+啟動器一律**相對路徑**，資料夾搬走不會壞。
+實測 PyInstaller 打包在這台開發機產出 **1.1 GB**（conda 環境拖進 MKL），
+所以那條路先擱著 —— `packaging/desktop.spec` 留著備用。
+⚠ **Windows 那半沒有實機驗證過**，不可能從 macOS 交叉編譯或測試。
+
+⚠ **macOS 的 tk 有六個控件走 Aqua 原生繪製、設了顏色也畫不出來**
+（`tk.Button`、`tk.Scrollbar`、`tk.Menu`、`Checkbutton` 指示器、`Spinbox` 箭頭、
+`OptionMenu`）—— 實測 `tk.Button(bg="#ff0000")` 中心像素是 (240,240,240)，
+鮮紅一個像素都沒有。要塗色只能用 `tk.Frame/Label/Entry/Listbox/Canvas/Text`，
+互動控件走 `ttk` + clam 主題。**動 UI 之前先讀 `tools/win95.py` 與
+`tools/desktop.py` 的檔頭**，六個坑都記在那裡（含拖曳幽靈毒化命中測試、
+PhotoImage 被 GC、背景執行緒動控件不會丟例外但會卡住）。
 
 除此之外**尚未建立 build / lint / test 工具鏈**（無 pyproject.toml、requirements.txt、CI）。從 repo root 執行即可。要不要正式打包等第一支模組落地再定，不要假設已經存在。
 

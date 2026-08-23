@@ -105,7 +105,85 @@ conflicts:
 
 ## 怎麼安裝
 
-### 現在什麼都不用裝
+### 一般使用者：跑安裝程式
+
+下載或 clone 這個 repo，然後**按兩下**：
+
+| 系統 | 按這個 |
+|---|---|
+| macOS | `install.command` |
+| Windows | `install.bat` |
+
+（習慣終端機的話：`python3 install.py`）
+
+它會依序做四件事：
+
+1. **偵測系統** —— 作業系統、架構、Python 版本、tkinter、磁碟空間。
+   缺什麼就給出**該平台的確切安裝指令**，不會裝到一半才爆。
+2. **建立獨立環境** —— `.venv/`，不動你系統的 Python。
+3. **裝相依套件** —— 約 80 MB（opencv、numpy、PyMuPDF）。
+4. **產出執行檔** —— macOS 給 `Paper-to-BIM.app`（可以拖到 Dock）與
+   `Paper-to-BIM.command`；Windows 給 `Paper-to-BIM.bat`。
+
+實測在 Intel Mac 上**全程 31 秒**，`.venv` 佔 228 MB。
+之後要更新：`python3 install.py --update`。只想看看缺什麼：`--check`。
+
+**唯一的前提是機器上要有 Python 3.10–3.14。** 沒有的話安裝程式會告訴你怎麼裝：
+
+```
+Windows   winget install Python.Python.3.12
+          （或 python.org 下載，安裝時務必勾選 tcl/tk and IDLE）
+macOS     brew install python@3.12 python-tk@3.12
+          （或 python.org 官方版，自帶 Tk）
+```
+
+> ⚠ **Windows 版的安裝程式我們還沒有在真的 Windows 上測過** ——
+> 開發機是 Intel Mac，而且**不可能從 macOS 交叉編譯或測試 Windows**。
+> 程式碼路徑寫好了，實測回報請開 issue。
+
+### 為什麼是安裝程式，不是免安裝的執行檔
+
+兩條路我們都做了，各有適用場合。
+
+| | 安裝程式 | 免安裝執行檔 |
+|---|---|---|
+| 下載量 | 約 80 MB | **167 MB**（macOS 實測） |
+| 前提 | 機器上要有 Python | 什麼都不用 |
+| 更新 | `--update`，只補差異 | 整包重載 |
+| 首次開啟 | 不會被擋 | Gatekeeper／SmartScreen 會擋 |
+
+**一開始我們量錯了原因。** 第一次打包產出 1.1 GB，看起來像是 opencv 太肥；
+實際查下去，886 MB 是 **conda 的 numpy 連著 Intel MKL** 被整包拖進去。
+改用乾淨的 `python -m venv` ＋ PyPI wheel 重建，**同一份原始碼、零修改，掉到 167 MB**，
+凍結後的 `--selftest` 一樣全過。所以免安裝版是可行的，我們用 GitHub Actions 出。
+
+安裝程式仍是預設推薦：更新只補差異，而且**本機產生的 `.app` 沒有 quarantine 屬性，
+Gatekeeper 不會擋** —— 下載來的就會。
+
+### 免安裝版怎麼拿
+
+推 `v*` tag 之後 GitHub Actions 會自動產出三個版本並掛上 Release：
+
+| 檔名 | 適用 |
+|---|---|
+| `Paper-to-BIM-windows-x64.zip` | Windows 10/11 |
+| `Paper-to-BIM-macos-intel.zip` | Intel Mac |
+| `Paper-to-BIM-macos-arm64.zip` | Apple Silicon |
+
+macOS 分兩版是因為 **opencv 沒有出 universal2 的 wheel**，不可能合成通用二進位。
+
+CI 每一版都會**在凍結後的執行檔上實際跑一次 `--selftest`** —— 開發機是 Intel Mac，
+Windows 與 Apple Silicon 沒辦法在本機驗證，那一步是唯一的證明。
+
+首次開啟會被擋，這是未簽章的必然結果（要根治得買憑證：Apple 開發者計畫年費、
+Windows 程式碼簽章憑證約 US$528/年起，且 2023-06 起金鑰一律要存在硬體 token 裡）：
+
+| 系統 | 怎麼放行 |
+|---|---|
+| macOS | 在 `.app` 上按右鍵 → 開啟 → 再按一次「開啟」 |
+| Windows | 藍色警告視窗 → 其他資訊 → 仍要執行 |
+
+### 開發者：什麼都不用裝也能跑健檢
 
 跑骨架健檢只需要 **Python 3.10–3.14**（上下限來自 IfcOpenShell 與 rhino3dm）：
 
