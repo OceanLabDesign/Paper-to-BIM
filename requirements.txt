@@ -1,0 +1,15 @@
+# Paper-to-BIM 執行期相依
+#
+# 依 CLAUDE.md「照 §11 建造順序分階段裝，不要一次全裝」——
+# 這份是**桌面應用（tools/desktop.py）跑起來所需的最小集合**，
+# 不是整條管線的全部。IfcOpenShell / rhino3dm / ezdxf / PaddleOCR 等
+# 各自屬於後面的步驟，要用到再裝。
+#
+# Python 3.10–3.14（上下限來自 IfcOpenShell 與 rhino3dm）
+
+opencv-python-headless>=4.10,<5   # 影像處理。headless 版沒有 GUI 後端，
+                                  # 我們的畫面是 tkinter 畫的，用不到 cv2 的視窗，
+                                  # 而且 headless 的 wheel 小很多、打包更省
+numpy>=1.26,<3
+PyMuPDF>=1.24                     # 選用：只有「片來自哪個 PDF 第幾頁」會用到，
+                                  # 缺了程式仍可跑（arrange.py 包在 try/except）

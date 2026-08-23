@@ -1,0 +1,195 @@
+# Paper-to-BIM 桌面版打包（packaging）：Windows x64 + macOS Intel + macOS Apple Silicon
+#
+# 這支的存在理由：**開發機沒有 Windows，PyInstaller 也不能交叉編譯（cross-compile）**，
+# 所以 .exe 只能在 Windows 機器上生出來 —— GitHub 的 windows runner 就是那台機器。
+#
+# 查證日期 2026-08-23：
+#   * 標籤現況（https://github.com/actions/runner-images README）：
+#       windows-latest = Windows Server 2025（VS2026）／macos-latest = macos-26 arm64
+#       macos-15-intel、macos-26-intel 是 Intel；macos-13 已退役、macos-14 標為 deprecated
+#   * macos-15-intel 是**標準（standard）runner**（4 CPU／14 GB），不是 larger runner；
+#     公開 repo 用標準 runner「free and unlimited」
+#     （https://docs.github.com/en/actions/reference/runners/github-hosted-runners）
+#   * opencv 沒有 universal2 wheel（PyPI 全歷史零命中），所以 macOS **不可能**一次打出
+#     通用二進位（universal binary），Intel 與 arm64 只能各打一份。
+#   * action 版本：checkout v7.0.1、setup-python v7.0.0、upload-artifact v7.0.1、
+#     download-artifact v8.0.1（各自 repo 的 releases/latest）
+
+name: build-desktop
+
+on:
+  workflow_dispatch:          # 先手動觸發，確認三台都綠了再談自動化
+  push:
+    tags: ['v*']              # 推 v 開頭的 tag 就打包並建 Release
+    # ⚠ 故意不加 paths 過濾：paths 對 tag push 一樣生效，
+    #   會讓「tag 指到的 commit 剛好沒動到 tools/」的發版整個被跳過。
+
+permissions:
+  contents: read              # 預設最小；只有建 Release 的 job 才提權
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_NAME: Paper-to-BIM
+  PYTHONUTF8: '1'             # Windows 主控台預設不是 UTF-8，本專案輸出全是中文
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false        # 一台掛掉不要連坐取消另外兩台
+      matrix:
+        include:
+          - os: windows-latest    # = windows-2025 x64
+            label: windows-x64
+          - os: macos-15-intel    # Intel。不用 macos-13（已退役）也不用 macos-14（deprecated）
+            label: macos-intel
+          - os: macos-15          # Apple Silicon（arm64）。不寫 macos-latest：
+            label: macos-arm64    # 它現在指到 macos-26，會隨 GitHub 漂移
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          # 對齊開發機的 3.12。**刻意不用 conda 的直譯器（interpreter）**：
+          # conda 版 numpy 連著 Intel MKL，實測會讓 .app 從 167MB 爆到 1.1GB。
+          # setup-python 在 macOS 裝的是 python.org 的官方建置，自帶 Tcl/Tk。
+          # ⚠ 在 macOS 與 Windows 上，'3.12' 實際會拿到 **3.12.10** —— CPython 3.12
+          #   之後的修訂版只出原始碼（security-only），actions/python-versions 的
+          #   manifest 裡 3.12.11+ 只有 linux 檔案。這不是問題，但要知道版號會停在那。
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-build.txt
+
+      - name: 裝相依
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-build.txt
+
+      # 打包前先讓「環境不對」在最便宜的位置炸出來。
+      # tkinter 是整個介面的地基，而且 venv／CI 環境最常缺的就是它。
+      - name: 前置檢查（tkinter 與 cv2 載得起來）
+        run: |
+          python -c "import _tkinter, tkinter; print('Tk', _tkinter.TK_VERSION)"
+          python -c "import cv2, numpy; print('cv2', cv2.__version__, 'numpy', numpy.__version__)"
+
+      # 骨架煙霧測試：45 支模組 import ＋ §10 參數比對 ＋ 最小測資 403+403=806。
+      # 這支**不需要 cases/**（案件資料照 .gitignore 一律不進版控），所以在 CI 跑得動。
+      # 注意 desktop.py --selftest 反而不能在 CI 用：它第一件事就是找案子，找不到直接 return 1。
+      - name: 骨架煙霧測試
+        run: python tests/smoke.py
+
+      - name: PyInstaller
+        # 用 spec 不用命令列參數：平台差異（.app／.exe、LSMinimumSystemVersion、
+        # 丟掉 FFmpeg DLL）都寫在 packaging/desktop.spec 裡，本機與 CI 才會打出同一個東西。
+        run: python -m PyInstaller packaging/desktop.spec --noconfirm
+
+      # ── macOS：只壓 .app ──────────────────────────────────────────────
+      # dist/ 底下同時有 COLLECT 產出的 Paper-to-BIM/ 與 BUNDLE 產出的 Paper-to-BIM.app
+      # （本機實測各 166MB／167MB，內容重複）。只發 .app。
+      # 一定要用 ditto：zip / Compress-Archive 會弄丟 symlink 與可執行位元（executable bit），
+      # 解壓出來的 .app 會打不開。
+      - name: 壓成 zip（macOS）
+        if: runner.os == 'macOS'
+        run: |
+          cd dist
+          ditto -c -k --sequesterRsrc --keepParent \
+                "${APP_NAME}.app" "${APP_NAME}-${{ matrix.label }}.zip"
+
+      - name: 產物體檢（macOS）
+        if: runner.os == 'macOS'
+        run: |
+          lipo -archs "dist/${APP_NAME}.app/Contents/MacOS/${APP_NAME}"
+          plutil -p "dist/${APP_NAME}.app/Contents/Info.plist"
+          # 這兩個數字必須是 0：conda 的 MKL（886MB）與 OpenCV 的 FFmpeg DLL（30.5MB）
+          echo "mkl: $(find "dist/${APP_NAME}.app" -iname '*mkl*' | wc -l)"
+          echo "ffmpeg: $(find "dist/${APP_NAME}.app" -iname '*ffmpeg*' | wc -l)"
+          du -sh "dist/${APP_NAME}.app"
+
+      # ★ 這一步是整份 workflow 最有價值的地方：**在凍結後的執行檔上真的跑一次**。
+      #   開發機是 Intel Mac，Windows 與 Apple Silicon 都沒辦法在本機驗證 ——
+      #   CI 是唯一能證明「這一包在那個作業系統上開得起來」的地方。
+      #   selftest 會自己分成「環境」與「資料」兩組：沒有 cases/ 時資料那組標成略過
+      #   而不是失敗（案件是使用者資料，照 .gitignore 不進版控）。
+      - name: 凍結後實跑（macOS）
+        if: runner.os == 'macOS'
+        run: |
+          "dist/${APP_NAME}.app/Contents/MacOS/${APP_NAME}" --selftest
+
+      # ── Windows ──────────────────────────────────────────────────────
+      - name: 凍結後實跑（Windows）
+        if: runner.os == 'Windows'
+        shell: pwsh
+        # ⚠ 這支是 --windowed（GUI 子系統）的 exe，兩件事要注意：
+        #   1. PowerShell 直接呼叫它**不會等它結束**，也拿不到離開碼。
+        #      一定要 Start-Process -Wait -PassThru。
+        #   2. GUI 子系統沒有主控台，sys.stdout 是 None。desktop.py 的
+        #      _fix_std_streams() 會把輸出導到 %TEMP%\paper-to-bim.log，
+        #      所以結果要去讀那個檔，不是讀 stdout。
+        run: |
+          $exe = "dist/$env:APP_NAME/$env:APP_NAME.exe"
+          if (-not (Test-Path $exe)) { throw "找不到 $exe" }
+          $log = Join-Path $env:TEMP "paper-to-bim.log"
+          if (Test-Path $log) { Remove-Item $log }
+          $p = Start-Process -FilePath $exe -ArgumentList '--selftest' -Wait -PassThru
+          if (Test-Path $log) { Get-Content $log } else { Write-Host "（沒有產生記錄檔）" }
+          if ($p.ExitCode -ne 0) { throw "凍結後的執行檔 selftest 失敗（離開碼 $($p.ExitCode)）" }
+
+      - name: 產物體檢（Windows）
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # 這個數字必須是 0：spec 會濾掉 opencv 的 FFmpeg DLL（實測 30.5MB 死重量）
+          $ff = Get-ChildItem -Recurse "dist/$env:APP_NAME" -Filter '*ffmpeg*' -EA SilentlyContinue
+          Write-Host "ffmpeg dll: $($ff.Count)"
+          $sz = (Get-ChildItem -Recurse "dist/$env:APP_NAME" | Measure-Object Length -Sum).Sum
+          Write-Host ("bundle: {0:N1} MB" -f ($sz / 1MB))
+
+      - name: 壓成 zip（Windows）
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "dist/$env:APP_NAME/$env:APP_NAME.exe")) {
+            throw "找不到 dist/$env:APP_NAME/$env:APP_NAME.exe"
+          }
+          Compress-Archive -Path "dist/$env:APP_NAME" `
+                           -DestinationPath "dist/$env:APP_NAME-${{ matrix.label }}.zip"
+          Get-ChildItem "dist/*.zip" | Select-Object Name, Length
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.APP_NAME }}-${{ matrix.label }}
+          path: dist/*.zip
+          if-no-files-found: error   # 沒東西就紅，不要默默交出空 artifact
+          retention-days: 14         # 可填 1–90，預設 90
+          compression-level: 0       # 裡面已經是 zip，再壓一次只是燒 CPU
+
+  release:
+    # 只有推 v* tag 才建 Release；手動觸發只留 artifact。
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest       # 只是搬檔案，用最便宜的
+    permissions:
+      contents: write            # 建 Release 必要
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist             # 不指定 name → 三個 artifact 各自一個子資料夾
+
+      - name: 建 Release 並掛上三個 zip
+        # 用 runner 內建的 gh CLI，不引第三方 action（少一個供應鏈相依、也不用追版本）
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -la dist/*/
+          gh release create "$GITHUB_REF_NAME" dist/*/*.zip \
+             --repo "$GITHUB_REPOSITORY" \
+             --title "$GITHUB_REF_NAME" \
+             --generate-notes
