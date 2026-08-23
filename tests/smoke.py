@@ -134,8 +134,13 @@ if "core/fields.py" not in empty:
             contract_fail.append(f"CONFLICT_SOURCES 多出 {src!r}（裁決 §5 只有三個）")
 if "core/classes.py" not in empty:
     C = importlib.import_module("core.classes")
-    if len(C.CLASSES) != 15:                           # §4：15 類
-        contract_fail.append(f"classes 是 {len(C.CLASSES)} 類，§4 說 15 類")
+    if len(C.CLASSES) < 15:                            # §4：至少 15 類
+        contract_fail.append(f"classes 只有 {len(C.CLASSES)} 類，§4 說 15 類")
+    if len(C.CLASSES) > 15:                            # 追加要有紀錄，不能默默長大
+        extra = [n for n, _z, _t in C.CLASSES[15:]]
+        src = (ROOT / "core" / "classes.py").read_text(encoding="utf-8")
+        if "需要負責人核可" not in src:
+            contract_fail.append(f"classes 追加了 {extra} 但沒有標明需核可（§4 寫的是 15 類）")
     if len(set(C.NAMES)) != len(C.NAMES):
         contract_fail.append("classes 有重複的 name")
     for n, _zh, t in C.CLASSES:

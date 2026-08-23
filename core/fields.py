@@ -50,6 +50,17 @@ SHEET_TILES = ("tile_id", "sheet_id", "row", "col", "part",
 TILE_PARTS = ("圖名區", "簽核區", "兩者皆有", "無")
 TILE_STATUS = ("assigned", "ambiguous", "unassigned")
 
+# 【草案】ADR 0011：片在圖座標系裡的位置（**候選，不是定案**）
+# s01c_register 產出，由中樞裁定。dx/dy 是片的左上角在該張圖座標系的位置（px）。
+# px_per_cm 每片各自校準 —— config.PX_PER_CM 只是後備值，不可跨案沿用
+# （68 年案 1.1811 vs 79 年案實測約 1.02，差 13%）。
+# tier 是證據強度：1 尺寸鏈跨縫閉合、2 圖框、3 基準線延續、4 重疊帶內容重複、
+# 9 無錨點只好用網格標稱值。
+PLACEMENT = ("tile_id", "sheet_id", "row", "col", "dx", "dy", "px_per_cm",
+             "tier", "method", "evidence", "conf", "status", "note")
+PLACEMENT_TIERS = (1, 2, 3, 4, 9)
+PLACEMENT_STATUS = ("candidate", "conflict", "unresolved")
+
 # 【草案】規格 §3：排除帶（圖框、標題欄、印章區）
 EXCLUDE = ("exclude_id", "sheet_id", "kind", "bbox_wkt", "note")
 EXCLUDE_KINDS = ("frame", "title_block", "stamp", "schedule", "other")
